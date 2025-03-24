@@ -1,0 +1,21 @@
+2025-03-24 23:34:13,266 - ImageProcessor - INFO - 程序启动
+2025-03-24 23:34:13,266 - ImageProcessor - INFO - 操作系统: win32
+2025-03-24 23:34:13,266 - ImageProcessor - INFO - Python版本: 3.10.0 (tags/v3.10.0:b494f59, Oct  4 2021, 19:00:18) [MSC v.1929 64 bit (AMD64)]
+2025-03-24 23:34:15,683 - ImageProcessor - INFO - 收到拖拽数据: [PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211349.jpg'), PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211400.jpg'), PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211417.jpg')]
+2025-03-24 23:34:15,685 - ImageProcessor - DEBUG - 正在解析拖拽数据: [PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211349.jpg'), PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211400.jpg'), PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211417.jpg')]
+2025-03-24 23:34:15,685 - ImageProcessor - DEBUG - 添加有效路径: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211349.jpg
+2025-03-24 23:34:15,685 - ImageProcessor - DEBUG - 添加有效路径: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211400.jpg
+2025-03-24 23:34:15,685 - ImageProcessor - DEBUG - 添加有效路径: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211417.jpg
+2025-03-24 23:34:15,685 - ImageProcessor - INFO - 最终解析结果: ['C:\\Users\\Yt\\Desktop\\img\\新建文件夹\\微信图片_20250323211349.jpg', 'C:\\Users\\Yt\\Desktop\\img\\新建文件夹\\微信图片_20250323211400.jpg', 'C:\\Users\\Yt\\Desktop\\img\\新建文件夹\\微信图片_20250323211417.jpg']
+2025-03-24 23:34:15,685 - ImageProcessor - INFO - 解析后的文件列表: ['C:\\Users\\Yt\\Desktop\\img\\新建文件夹\\微信图片_20250323211349.jpg', 'C:\\Users\\Yt\\Desktop\\img\\新建文件夹\\微信图片_20250323211400.jpg', 'C:\\Users\\Yt\\Desktop\\img\\新建文件夹\\微信图片_20250323211417.jpg']
+2025-03-24 23:34:15,686 - ImageProcessor - DEBUG - 处理文件: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211349.jpg
+2025-03-24 23:34:15,686 - ImageProcessor - DEBUG - 有效图片文件: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211349.jpg
+2025-03-24 23:34:15,686 - ImageProcessor - DEBUG - 处理文件: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211400.jpg
+2025-03-24 23:34:15,686 - ImageProcessor - DEBUG - 有效图片文件: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211400.jpg
+2025-03-24 23:34:15,686 - ImageProcessor - DEBUG - 处理文件: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211417.jpg
+2025-03-24 23:34:15,686 - ImageProcessor - DEBUG - 有效图片文件: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211417.jpg
+2025-03-24 23:34:15,686 - ImageProcessor - INFO - 添加了 3 个文件，有效添加 3 个（去重后）
+2025-03-24 23:34:15,729 - ImageProcessor - DEBUG - 成功预览图片
+2025-03-24 23:34:16,385 - ImageProcessor - INFO - 初始化OCR引擎，使用语言: ['ch_sim', 'en']
+2025-03-24 23:34:16,386 - ImageProcessor - INFO - GPU加速状态: 不可用
+2025-03-24 23:36:54,787 - ImageProcessor - DEBUG - 成功预览图片

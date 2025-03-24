@@ -16,6 +16,7 @@ import cv2
 import re
 import datetime
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
 
@@ -75,43 +76,124 @@ class ProcessThread(QThread):
         self.rotation_group = rotation_group
         self.processed_images = []
         self.debug_mode = True
+        self.max_image_size = 2000  # 增加处理图片的最大尺寸
+        self.num_workers = os.cpu_count() or 1  # 获取CPU核心数
         
         # 设置日志记录器
         self.logger = logging.getLogger("ImageProcessor.ProcessThread")
     
-    def run(self):
-        """线程运行函数"""
+    def preprocess_image(self, img_np):
+        """预处理图片以提高处理质量和速度"""
         try:
-            total = len(self.files)
-            for i, file_path in enumerate(self.files):
-                self.status.emit(f"处理图片 {i+1}/{total}: {os.path.basename(file_path)}")
-                self.progress.emit(int((i / total) * 100))
+            # 转换为灰度图
+            if len(img_np.shape) == 3:
+                gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
+            else:
+                gray = img_np
                 
-                # 处理单个图片
-                processed_img = self.process_single_image(file_path)
-                if processed_img:
-                    self.processed_images.append(processed_img)
-                
-                # 短暂暂停，避免界面卡顿
-                time.sleep(0.1)
+            # 调整图片大小以加快处理速度
+            h, w = gray.shape[:2]
+            if max(h, w) > self.max_image_size:
+                scale = self.max_image_size / max(h, w)
+                new_w = int(w * scale)
+                new_h = int(h * scale)
+                gray = cv2.resize(gray, (new_w, new_h), interpolation=cv2.INTER_LANCZOS4)
             
-            self.progress.emit(100)
-            self.status.emit(f"处理完成! 成功处理 {len(self.processed_images)} 张图片")
-            self.finished.emit(self.processed_images)
+            # 1. 去噪处理
+            # 使用双边滤波保留边缘信息
+            denoised = cv2.bilateralFilter(gray, 9, 75, 75)
+            # 再使用非局部均值去噪
+            denoised = cv2.fastNlMeansDenoising(denoised, None, 10, 7, 21)
+            
+            # 2. 对比度增强
+            # 自适应直方图均衡化
+            clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+            enhanced = clahe.apply(denoised)
+            
+            # 3. 锐化处理
+            # 使用拉普拉斯算子
+            kernel = np.array([[-1,-1,-1], [-1,9,-1], [-1,-1,-1]])
+            sharpened = cv2.filter2D(enhanced, -1, kernel)
+            
+            # 4. 自适应阈值二值化
+            binary = cv2.adaptiveThreshold(
+                sharpened,
+                255,
+                cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                cv2.THRESH_BINARY,
+                11,
+                2
+            )
+            
+            # 5. 形态学操作
+            # 创建核
+            kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3,3))
+            # 先闭运算，填充小孔
+            morph = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, kernel)
+            # 再开运算，去除小噪点
+            morph = cv2.morphologyEx(morph, cv2.MORPH_OPEN, kernel)
+            
+            # 6. 倾斜校正
+            # 检测直线
+            edges = cv2.Canny(morph, 50, 150, apertureSize=3)
+            lines = cv2.HoughLines(edges, 1, np.pi/180, 100)
+            
+            if lines is not None:
+                # 计算主要方向
+                angles = []
+                for rho, theta in lines[:, 0]:
+                    angle = theta * 180 / np.pi
+                    if angle < 45:
+                        angles.append(angle)
+                    elif angle > 135:
+                        angles.append(angle - 180)
+                
+                if angles:
+                    # 使用RANSAC算法筛选异常值
+                    angles = np.array(angles)
+                    median_angle = np.median(angles)
+                    mad = np.median(np.abs(angles - median_angle))
+                    inliers = angles[np.abs(angles - median_angle) < 2.5 * mad]
+                    
+                    if len(inliers) > 0:
+                        final_angle = np.mean(inliers)
+                        if abs(final_angle) > 0.5:  # 如果倾斜角度大于0.5度
+                            # 旋转校正
+                            h, w = morph.shape
+                            center = (w//2, h//2)
+                            M = cv2.getRotationMatrix2D(center, final_angle, 1.0)
+                            morph = cv2.warpAffine(morph, M, (w, h), 
+                                                 flags=cv2.INTER_CUBIC,
+                                                 borderMode=cv2.BORDER_REPLICATE)
+            
+            # 7. 边缘增强
+            edge_enhanced = cv2.addWeighted(morph, 0.8, cv2.Canny(morph, 50, 150), 0.2, 0)
+            
+            # 8. 最终清理
+            # 移除小连通区域
+            num_labels, labels, stats, _ = cv2.connectedComponentsWithStats(edge_enhanced, connectivity=8)
+            min_size = 50  # 最小连通区域大小
+            
+            # 保留大于最小尺寸的连通区域
+            for i in range(1, num_labels):  # 从1开始，跳过背景
+                if stats[i, cv2.CC_STAT_AREA] < min_size:
+                    edge_enhanced[labels == i] = 0
+                
+            return edge_enhanced
             
         except Exception as e:
-            self.logger.error(f"处理图片时出错: {str(e)}", exc_info=True)
-            error_msg = f"处理图片时出错: {str(e)}\n{traceback.format_exc()}" if self.debug_mode else f"处理图片时出错: {str(e)}"
-            self.error.emit(error_msg)
+            self.logger.error(f"图像预处理错误: {str(e)}", exc_info=True)
+            return img_np
     
     def process_single_image(self, file_path):
         """处理单个图片，识别文字并确定正确方向"""
         try:
             # 打开图片
             img = Image.open(file_path)
+            img_np = np.array(img)
             
             # 检查旋转模式
-            rotation_mode = "auto"  # 默认自动模式
+            rotation_mode = "auto"
             for button in self.rotation_group.buttons():
                 if button.isChecked():
                     rotation_mode = button.text().replace("旋转", "").replace("°", "")
@@ -123,81 +205,212 @@ class ProcessThread(QThread):
             if rotation_mode != "auto":
                 rotation_angle = int(rotation_mode)
                 if rotation_angle != 0:
-                    img = img.rotate(rotation_angle, expand=True)
+                    img = img.rotate(rotation_angle, expand=True, resample=Image.BICUBIC)
                 return img
             
             # 自动模式：执行OCR识别和角度判断
-            # 转换为OpenCV格式以便处理
-            img_np = np.array(img)
+            # 预处理图片
+            processed_img = self.preprocess_image(img_np)
             
-            # 检查图片是否为灰度图
-            if len(img_np.shape) == 2:
-                # 灰度图转为三通道
-                img_np = cv2.cvtColor(img_np, cv2.COLOR_GRAY2RGB)
-            elif len(img_np.shape) == 3 and img_np.shape[2] == 4:
-                # RGBA转为RGB
-                img_np = cv2.cvtColor(img_np, cv2.COLOR_RGBA2RGB)
-            
-            # 尝试在四个方向上进行OCR识别，选择结果最好的方向
+            # 尝试四个方向的OCR识别
             orientations = [0, 90, 180, 270]
             best_confidence = -1
             best_orientation = 0
-            best_result = None
+            best_results = None
             
-            # 获取原始OCR结果
-            results = self.reader.readtext(img_np)
-            if results:
-                # 获取原始方向的总置信度
-                total_confidence = sum(prob for _, _, prob in results)
-                best_confidence = total_confidence
-                best_result = results
-                if self.debug_mode:
-                    self.logger.debug(f"原始方向(0°)识别到{len(results)}个文本，总置信度: {total_confidence}")
-            else:
-                if self.debug_mode:
-                    self.logger.debug(f"原始方向未识别到文本")
-            
-            # 尝试其他三个方向
-            for angle in [90, 180, 270]:
-                # 旋转图像进行测试
-                rotated = self.rotate_image(img_np, angle)
-                rotated_results = self.reader.readtext(rotated)
-                
-                # 计算这个方向的总置信度
-                if rotated_results:
-                    angle_confidence = sum(prob for _, _, prob in rotated_results)
-                    
-                    # 对90度和270度的旋转添加额外惩罚，因为垂直文本更难识别
-                    if angle in [90, 270] and self.lang_group.checkedButton().text() == "简体中文":
-                        # 中文文档对垂直方向有偏好
-                        angle_confidence *= 1.2
-                    
-                    if self.debug_mode:
-                        self.logger.debug(f"旋转{angle}°识别到{len(rotated_results)}个文本，总置信度: {angle_confidence}")
-                    
-                    # 如果识别文本数更多或置信度更高，则选择此方向
-                    if angle_confidence > best_confidence or (len(rotated_results) > len(best_result or []) * 1.5):
-                        best_confidence = angle_confidence
-                        best_orientation = angle
-                        best_result = rotated_results
+            for angle in orientations:
+                # 旋转图像进行OCR
+                if angle != 0:
+                    rotated = self.rotate_image(processed_img, angle)
                 else:
-                    if self.debug_mode:
-                        self.logger.debug(f"旋转{angle}°未识别到文本")
+                    rotated = processed_img
+                
+                # OCR识别
+                results = self.reader.readtext(rotated)
+                
+                if results:
+                    # 计算综合置信度得分
+                    confidence = self.calculate_confidence_score(results, angle)
+                    
+                    if confidence > best_confidence:
+                        best_confidence = confidence
+                        best_orientation = angle
+                        best_results = results
             
-            # 使用投票机制来确定最终的旋转方向
-            final_orientation = self.confirm_orientation(img_np, results, best_orientation, best_result)
+            # 如果OCR结果不理想，使用线条分析
+            if best_confidence < 0.4:  # 置信度阈值
+                line_orientation = self.determine_orientation_by_lines(processed_img)
+                if line_orientation != 0:
+                    best_orientation = line_orientation
             
-            # 如果需要旋转，就旋转图片
-            if final_orientation != 0:
-                img = img.rotate(final_orientation, expand=True)
-                if self.debug_mode:
-                    self.logger.debug(f"图片 {os.path.basename(file_path)} 旋转了 {final_orientation} 度")
+            # 执行最终旋转
+            if best_orientation != 0:
+                img = img.rotate(best_orientation, expand=True, resample=Image.BICUBIC)
             
             return img
             
         except Exception as e:
             self.logger.error(f"处理图片 {os.path.basename(file_path)} 时出错: {str(e)}", exc_info=True)
             return None
+    
+    def calculate_confidence_score(self, results, angle):
+        """计算OCR结果的综合置信度得分"""
+        if not results:
+            return -1
+        
+        # 1. 基础置信度计算
+        confidences = []
+        weights = []
+        total_text = ""
+        
+        for box, text, prob in results:
+            confidences.append(prob)
+            weights.append(len(text))
+            total_text += text + " "
+        
+        weights = np.array(weights) / np.sum(weights)
+        base_confidence = np.sum(np.array(confidences) * weights)
+        
+        # 2. 文本特征分析
+        text_lines = len(results)
+        line_bonus = min(text_lines / 8.0, 1.2)
+        
+        # 3. 文本框分析
+        boxes = np.array([box for box, _, _ in results])
+        if len(boxes) > 1:
+            # 3.1 计算文本框的对齐程度
+            x_coords = boxes[:, :, 0].flatten()
+            y_coords = boxes[:, :, 1].flatten()
+            
+            # 计算对齐度
+            def calculate_alignment(coords):
+                if len(coords) < 2:
+                    return 0.5
+                sorted_coords = np.sort(coords)
+                diffs = np.diff(sorted_coords)
+                alignment = 1.0 / (1.0 + np.std(diffs) / np.mean(diffs))
+                return alignment
+            
+            h_alignment = calculate_alignment(x_coords)
+            v_alignment = calculate_alignment(y_coords)
+            
+            # 3.2 根据角度选择合适的对齐度
+            if angle in [0, 180]:
+                alignment_score = h_alignment * 1.2
+            elif angle in [90, 270]:
+                alignment_score = v_alignment * 1.2
+            else:
+                alignment_score = max(h_alignment, v_alignment)
+            
+            # 3.3 计算文本框间距的规律性
+            if angle in [0, 180]:
+                gaps = np.diff(sorted(y_coords.reshape(-1, 2).mean(axis=1)))
+            else:
+                gaps = np.diff(sorted(x_coords.reshape(-1, 2).mean(axis=1)))
+            
+            if len(gaps) > 0:
+                gap_regularity = 1.0 / (1.0 + np.std(gaps) / np.mean(gaps))
+                if np.max(gaps) > 3 * np.mean(gaps):
+                    gap_regularity *= 0.8
+            else:
+                gap_regularity = 0.5
+        else:
+            alignment_score = 0.5
+            gap_regularity = 0.5
+        
+        # 4. 增强的文本内容分析
+        content_score = 0
+        total_chars = 0
+        valid_text_lines = 0
+        
+        # 4.1 标点符号位置分析
+        punctuation_score = 0
+        chinese_puncts = '。，；：！？、'
+        english_puncts = '.,;:!?'
+        all_puncts = chinese_puncts + english_puncts
+        
+        for _, text, _ in results:
+            text = text.strip()
+            if not text:
+                continue
+            
+            total_chars += len(text)
+            valid_text_lines += 1
+            
+            # 检查标点符号位置
+            if angle == 180:  # 特别关注倒置情况
+                # 如果文本以标点开始，这可能是倒置的迹象
+                if text[0] in all_puncts:
+                    punctuation_score -= 0.2
+                # 如果文本以标点结束，这是正常的
+                if text[-1] in all_puncts:
+                    punctuation_score += 0.1
+            else:
+                # 正常方向的文本
+                if text[-1] in all_puncts:
+                    punctuation_score += 0.1
+        
+        # 4.2 中文文本特征分析
+        chinese_ratio = sum(1 for c in total_text if '\u4e00' <= c <= '\u9fff') / len(total_text) if total_text else 0
+        
+        # 4.3 行首缩进分析（针对中文）
+        if chinese_ratio > 0.5 and angle in [0, 180]:
+            indent_score = 0
+            for _, text, _ in results:
+                if text.strip() and text[0] == '　':  # 检查全角空格
+                    indent_score += 0.1
+            content_score += min(indent_score, 0.3)
+        
+        # 5. 方向特征分析
+        direction_score = 1.0
+        
+        # 5.1 处理倒置情况 (180度)
+        if angle == 180:
+            # 检查是否存在明显的倒置特征
+            inverted_features = 0
+            
+            # 检查标点符号位置
+            if punctuation_score < 0:
+                inverted_features += 1
+            
+            # 检查中文文本的特征
+            if chinese_ratio > 0.5:
+                # 检查是否存在不合理的行首标点
+                for _, text, _ in results:
+                    if text.strip() and text[0] in chinese_puncts:
+                        inverted_features += 1
+            
+            # 根据倒置特征数量调整方向得分
+            if inverted_features >= 2:
+                direction_score *= 0.7
+        
+        # 6. 计算最终得分
+        weights = {
+            'base_confidence': 0.20,
+            'alignment': 0.25,
+            'gap_regularity': 0.15,
+            'content': 0.20,
+            'direction': 0.20
+        }
+        
+        final_score = (
+            weights['base_confidence'] * base_confidence +
+            weights['alignment'] * alignment_score +
+            weights['gap_regularity'] * gap_regularity +
+            weights['content'] * (content_score + punctuation_score) +
+            weights['direction'] * direction_score
+        )
+        
+        # 7. 应用额外的方向惩罚
+        if angle == 180:
+            # 如果存在强烈的倒置迹象，显著降低分数
+            if inverted_features >= 2:
+                final_score *= 0.6
+            # 如果文本行很少，增加惩罚
+            if text_lines < 3:
+                final_score *= 0.8
+        
+        return final_score
     
     def rotate_image(self, img, angle):
         """旋转OpenCV格式的图像"""
@@ -245,56 +458,172 @@ class ProcessThread(QThread):
         return best_orientation
     
     def determine_orientation_by_lines(self, img_np):
-        """使用Hough线变换来确定图像方向"""
+        """使用多种特征分析确定图像方向"""
         try:
             # 转换为灰度图
-            gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
+            if len(img_np.shape) == 3:
+                gray = cv2.cvtColor(img_np, cv2.COLOR_RGB2GRAY)
+            else:
+                gray = img_np
             
-            # 使用Canny边缘检测
-            edges = cv2.Canny(gray, 50, 150, apertureSize=3)
+            # 1. 图像预处理
+            # 使用高斯模糊减少噪声
+            blurred = cv2.GaussianBlur(gray, (5, 5), 0)
             
-            # 使用概率Hough变换检测线段
-            lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=100, minLineLength=100, maxLineGap=10)
+            # 自适应阈值处理
+            binary = cv2.adaptiveThreshold(
+                blurred,
+                255,
+                cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                cv2.THRESH_BINARY,
+                11,
+                2
+            )
             
-            if lines is None or len(lines) == 0:
-                return 0  # 没有检测到线条，假设不需要旋转
+            # 边缘检测
+            edges = cv2.Canny(binary, 50, 150, apertureSize=3)
             
-            # 计算线段方向
-            horizontal_count = 0
-            vertical_count = 0
+            # 2. 增强的线段检测
+            # 使用概率霍夫变换检测线段
+            lines = cv2.HoughLinesP(edges, 1, np.pi/180, 
+                                  threshold=100,
+                                  minLineLength=50,  # 降低最小线段长度以检测更多线段
+                                  maxLineGap=10)
+            
+            if lines is None:
+                return 0
+            
+            # 3. 改进的方向分析
+            angles = []
+            lengths = []  # 存储线段长度
+            confidences = []  # 存储每个线段的置信度
             
             for line in lines:
                 x1, y1, x2, y2 = line[0]
-                # 计算线段角度
-                angle = np.degrees(np.arctan2(y2 - y1, x2 - x1))
+                # 计算线段长度
+                length = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)
                 
-                # 将角度归一化到 [-90, 90]
+                # 计算角度
+                angle = np.degrees(np.arctan2(y2 - y1, x2 - x1))
+                # 归一化角度到 [-90, 90]
+                angle = angle % 180
                 if angle > 90:
                     angle -= 180
-                elif angle < -90:
-                    angle += 180
+                    
+                # 计算线段的置信度
+                # 基于线段长度和边缘强度
+                edge_strength = np.mean([edges[y1, x1], edges[y2, x2]])
+                confidence = length * edge_strength / 255.0
                 
-                # 判断线段是水平还是垂直
-                if abs(angle) < 30:  # 接近水平
-                    horizontal_count += 1
-                elif abs(angle) > 60:  # 接近垂直
-                    vertical_count += 1
+                angles.append(angle)
+                lengths.append(length)
+                confidences.append(confidence)
             
-            # 根据水平和垂直线段的数量判断方向
-            if horizontal_count > vertical_count * 1.5:
-                # 水平线明显多于垂直线，可能是正确方向或180度旋转
-                return 0
-            elif vertical_count > horizontal_count * 1.5:
-                # 垂直线明显多于水平线，可能是90度或270度旋转
-                # 默认选择90度旋转，如果需要更精确，可以添加更多判断
-                return 90
+            # 4. 加权统计分析
+            angles = np.array(angles)
+            lengths = np.array(lengths)
+            confidences = np.array(confidences)
             
-            return 0  # 无明确方向时，不旋转
+            # 使用RANSAC算法筛选异常值
+            if len(angles) > 10:
+                median_angle = np.median(angles)
+                mad = np.median(np.abs(angles - median_angle))
+                inlier_mask = np.abs(angles - median_angle) < 2.5 * mad
+                
+                angles = angles[inlier_mask]
+                lengths = lengths[inlier_mask]
+                confidences = confidences[inlier_mask]
+            
+            # 计算加权方向
+            weights = lengths * confidences
+            weighted_angles = angles * weights
+            
+            # 使用更细的直方图bins
+            hist, bins = np.histogram(weighted_angles, bins=36, range=(-90, 90), weights=weights)
+            smoothed_hist = np.convolve(hist, [0.1, 0.2, 0.4, 0.2, 0.1], mode='same')  # 平滑直方图
+            
+            # 5. 文本行分析
+            # 计算投影
+            row_projection = np.sum(binary, axis=1)
+            col_projection = np.sum(binary, axis=0)
+            
+            # 使用小波变换进行投影分析
+            def analyze_projection(proj):
+                # 使用haar小波变换检测周期性
+                import pywt
+                coeffs = pywt.wavedec(proj, 'haar', level=3)
+                # 计算每个尺度的能量
+                energies = [np.sum(c**2) for c in coeffs]
+                return np.array(energies)
+            
+            row_energies = analyze_projection(row_projection)
+            col_energies = analyze_projection(col_projection)
+            
+            # 6. 综合判断
+            # 获取主方向
+            main_angle_idx = np.argmax(smoothed_hist)
+            main_angle = (main_angle_idx * 5) - 90  # 将bin索引转换为角度
+            
+            # 计算方向的置信度
+            direction_confidence = smoothed_hist[main_angle_idx] / np.sum(smoothed_hist)
+            
+            # 分析文本行特征
+            is_horizontal = row_energies[1] > col_energies[1]  # 比较水平和垂直方向的周期性
+            
+            # 7. 最终决策
+            if direction_confidence > 0.3:  # 如果有明显的主方向
+                if abs(main_angle) < 30:  # 接近水平
+                    return 0 if is_horizontal else 90
+                elif main_angle > 30:  # 需要逆时针旋转
+                    return 90 if is_horizontal else 180
+                else:  # 需要顺时针旋转
+                    return 270 if is_horizontal else 0
+            else:  # 如果没有明显的主方向，依据文本行特征
+                return 0 if is_horizontal else 90
             
         except Exception as e:
-            if self.debug_mode:
-                self.logger.error(f"线条分析错误: {str(e)}", exc_info=True)
-            return 0  # 出错时不旋转
+            self.logger.error(f"方向检测错误: {str(e)}", exc_info=True)
+            return 0
+
+    def run(self):
+        """线程运行函数"""
+        try:
+            total = len(self.files)
+            processed_count = 0
+            
+            # 创建线程池
+            with ThreadPoolExecutor(max_workers=self.num_workers) as executor:
+                # 提交所有任务
+                future_to_file = {
+                    executor.submit(self.process_single_image, file_path): file_path 
+                    for file_path in self.files
+                }
+                
+                # 处理完成的任务
+                for future in as_completed(future_to_file):
+                    file_path = future_to_file[future]
+                    try:
+                        processed_img = future.result()
+                        if processed_img:
+                            self.processed_images.append(processed_img)
+                        processed_count += 1
+                        
+                        # 更新进度
+                        progress = int((processed_count / total) * 100)
+                        self.progress.emit(progress)
+                        self.status.emit(f"已完成 {processed_count}/{total} 张图片 ({progress}%)")
+                        
+                    except Exception as e:
+                        self.logger.error(f"处理图片 {os.path.basename(file_path)} 时出错: {str(e)}")
+            
+            self.progress.emit(100)
+            self.status.emit(f"处理完成! 成功处理 {len(self.processed_images)} 张图片")
+            self.finished.emit(self.processed_images)
+            
+        except Exception as e:
+            self.logger.error(f"处理图片时出错: {str(e)}", exc_info=True)
+            error_msg = f"处理图片时出错: {str(e)}"
+            self.error.emit(error_msg)
 
 class ImageProcessorWindow(QMainWindow):
     def __init__(self):
@@ -523,53 +852,38 @@ class ImageProcessorWindow(QMainWindow):
         
         self.logger.debug(f"正在解析拖拽数据: {urls}")
         
-        # Windows路径规则化
-        def normalize_path(url):
-            if isinstance(url, str):
-                path = url
-            else:
-                path = url.toLocalFile()
-            
-            path = path.strip('"\'')
-            path = path.strip()
-            # 替换Windows中的正斜杠为反斜杠
-            if sys.platform == 'win32':
-                path = path.replace('/', '\\')
-            return path
-        
         try:
             # 处理每个URL
             for url in urls:
-                if isinstance(url, str):
-                    path = url
-                else:
-                    path = url.toLocalFile()
+                path = url.toLocalFile() if not isinstance(url, str) else url
+                path = path.strip('"\'').strip()
                 
-                # 规范化路径
-                normalized_path = normalize_path(path)
-                if normalized_path and os.path.exists(normalized_path):
-                    files.append(normalized_path)
-                    self.logger.debug(f"添加有效路径: {normalized_path}")
+                # Windows路径规则化
+                if sys.platform == 'win32':
+                    path = path.replace('/', '\\')
+                
+                if path and os.path.exists(path):
+                    files.append(path)
+                    self.logger.debug(f"添加有效路径: {path}")
             
             # 如果没有找到有效文件，尝试其他方法
-            if not files:
-                # 尝试直接从第一个URL获取路径
+            if not files and urls:
                 first_url = urls[0]
-                if isinstance(first_url, str):
-                    path = first_url
-                else:
-                    path = first_url.toLocalFile()
+                path = first_url.toLocalFile() if not isinstance(first_url, str) else first_url
+                path = path.strip('"\'').strip()
                 
-                normalized_path = normalize_path(path)
-                if normalized_path and os.path.exists(normalized_path):
-                    files.append(normalized_path)
-                    self.logger.debug(f"使用备用方法添加路径: {normalized_path}")
+                if sys.platform == 'win32':
+                    path = path.replace('/', '\\')
+                
+                if path and os.path.exists(path):
+                    files.append(path)
+                    self.logger.debug(f"使用备用方法添加路径: {path}")
         
         except Exception as e:
             self.logger.error(f"解析路径时出错: {str(e)}", exc_info=True)
         
         # 最终验证
-        files = [f for f in files if f.strip() and os.path.exists(f)]  # 过滤空字符串和不存在的文件
+        files = [f for f in files if f.strip() and os.path.exists(f)]
         self.logger.info(f"最终解析结果: {files}")
         return files
     
@@ -629,17 +943,42 @@ class ImageProcessorWindow(QMainWindow):
         
             self.show_preview(self.selected_files[index])
     
-    def show_preview(self, filepath):
-        """显示图片预览"""
+    def show_preview(self, filepath_or_image):
+        """显示图片预览
+        Args:
+            filepath_or_image: 可以是图片文件路径(str)或PIL Image对象
+        """
         try:
-            img = Image.open(filepath)
-            # 调整图片大小以适应预览区域
-            img.thumbnail((400, 400))
-            pixmap = QPixmap.fromImage(QImage(filepath))
+            if isinstance(filepath_or_image, str):
+                # 处理文件路径
+                img = QImage(filepath_or_image)
+                if img.isNull():
+                    raise Exception("无法加载图片文件")
+            else:
+                # 处理PIL Image对象
+                img_array = np.array(filepath_or_image)
+                height, width = img_array.shape[:2]
+                if len(img_array.shape) == 2:  # 灰度图
+                    img_array = cv2.cvtColor(img_array, cv2.COLOR_GRAY2RGB)
+                elif len(img_array.shape) == 3 and img_array.shape[2] == 4:  # RGBA
+                    img_array = cv2.cvtColor(img_array, cv2.COLOR_RGBA2RGB)
+                img = QImage(img_array.data, width, height, width * 3, QImage.Format_RGB888)
             
-            self.preview_label.setPixmap(pixmap)
+            # 等比例缩放图片到固定大小
+            pixmap = QPixmap.fromImage(img)
+            scaled_pixmap = pixmap.scaled(
+                800, 800,  # 使用更大的固定预览尺寸
+                Qt.KeepAspectRatio,
+                Qt.SmoothTransformation
+            )
+            
+            self.preview_label.setPixmap(scaled_pixmap)
+            self.logger.debug(f"成功预览图片")
+            
         except Exception as e:
-            QMessageBox.warning(self, "预览错误", f"无法预览该图片: {str(e)}")
+            self.logger.error(f"预览图片出错: {str(e)}", exc_info=True)
+            self.preview_label.clear()
+            self.preview_label.setText("预览失败")
     
     def initialize_ocr(self):
         """初始化OCR引擎"""
@@ -647,18 +986,56 @@ class ImageProcessorWindow(QMainWindow):
             if self.reader is None:
                 self.statusBar().showMessage("初始化OCR引擎中，请稍候...")
                 
+                # 检测GPU是否可用
+                gpu_available = False
+                gpu_type = "none"
+                try:
+                    import torch
+                    if torch.cuda.is_available():  # 检测NVIDIA GPU
+                        gpu_info = torch.cuda.get_device_properties(0)
+                        if 'NVIDIA' in gpu_info.name:
+                            gpu_available = True
+                            gpu_type = "nvidia"
+                            # 设置CUDA内存分配策略
+                            torch.cuda.set_per_process_memory_fraction(0.8)  # 限制GPU内存使用
+                            torch.backends.cudnn.benchmark = True  # 优化性能
+                    elif hasattr(torch, 'has_rocm') and torch.has_rocm:  # 检测AMD GPU
+                        gpu_available = True
+                        gpu_type = "amd"
+                        # ROCm特定设置可以在这里添加
+                except Exception as e:
+                    self.logger.warning(f"GPU检测出错: {str(e)}")
+
                 # 根据用户选择确定语言配置
                 selected_lang = self.ch_radio.text()
                 main_lang = self.lang_map[selected_lang]
                 languages = [main_lang]
                 
-                # 如果主语言不是英文，添加英文作为辅助语言
                 if main_lang != "en":
                     languages.append("en")
                 
                 self.logger.info(f"初始化OCR引擎，使用语言: {languages}")
-                self.reader = easyocr.Reader(languages)
-                self.statusBar().showMessage("OCR引擎已准备就绪")
+                self.logger.info(f"GPU状态: {gpu_type.upper() if gpu_available else 'CPU模式'}")
+                
+                # 初始化OCR引擎
+                self.reader = easyocr.Reader(languages, gpu=gpu_available)
+                
+                # 显示GPU状态
+                status_msg = "OCR引擎已准备就绪"
+                if not gpu_available:
+                    status_msg += " (GPU加速未启用，处理速度可能较慢)"
+                    QMessageBox.information(self, "提示", 
+                        "未检测到支持的GPU，OCR处理将使用CPU模式运行，可能会较慢。\n"
+                        "建议：\n"
+                        "1. 如果您有NVIDIA显卡，请安装CUDA工具包\n"
+                        "2. 如果您有AMD显卡，请安装ROCm和支持ROCm的PyTorch\n"
+                        "3. 确保已安装正确版本的PyTorch\n"
+                        "4. 重启应用以启用GPU加速")
+                else:
+                    status_msg += f" ({gpu_type.upper()} GPU加速已启用)"
+                
+                self.statusBar().showMessage(status_msg)
+                
         except Exception as e:
             self.logger.error(f"初始化OCR引擎时出错: {str(e)}", exc_info=True)
             QMessageBox.warning(self, "OCR初始化错误", f"初始化OCR引擎时出错: {str(e)}")
@@ -723,7 +1100,7 @@ class ImageProcessorWindow(QMainWindow):
             # 显示第一张处理后的图片
             if self.processed_images:
                 self.show_preview(self.processed_images[0])
-                
+            
         except Exception as e:
             self.logger.error(f"处理完成回调时出错: {str(e)}", exc_info=True)
             QMessageBox.warning(self, "错误", f"更新界面时出错: {str(e)}")
