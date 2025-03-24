@@ -1,0 +1,12 @@
+2025-03-24 21:28:24,709 - ImageProcessor - INFO - 程序启动
+2025-03-24 21:28:24,709 - ImageProcessor - INFO - 操作系统: win32
+2025-03-24 21:28:24,710 - ImageProcessor - INFO - Python版本: 3.10.0 (tags/v3.10.0:b494f59, Oct  4 2021, 19:00:18) [MSC v.1929 64 bit (AMD64)]
+2025-03-24 21:28:56,579 - ImageProcessor - INFO - 收到拖拽数据: [PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211417.jpg'), PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211317.jpg'), PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211329.jpg'), PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211338.jpg'), PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211349.jpg'), PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211400.jpg')]
+2025-03-24 21:28:56,579 - ImageProcessor - DEBUG - 正在解析拖拽数据: [PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211417.jpg'), PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211317.jpg'), PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211329.jpg'), PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211338.jpg'), PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211349.jpg'), PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211400.jpg')]
+2025-03-24 21:28:56,580 - ImageProcessor - ERROR - 拖放处理错误: 'str' object has no attribute 'chopped'
+Traceback (most recent call last):
+  File "C:\GitHub\ORC\main.py", line 492, in dropEvent
+    files = self.parse_dropped_data(urls)
+  File "C:\GitHub\ORC\main.py", line 541, in parse_dropped_data
+    urls[0].toString().chopped(1)
+AttributeError: 'str' object has no attribute 'chopped'

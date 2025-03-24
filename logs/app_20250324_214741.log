@@ -1,0 +1,57 @@
+2025-03-24 21:47:41,413 - ImageProcessor - INFO - 程序启动
+2025-03-24 21:47:41,413 - ImageProcessor - INFO - 操作系统: win32
+2025-03-24 21:47:41,413 - ImageProcessor - INFO - Python版本: 3.10.0 (tags/v3.10.0:b494f59, Oct  4 2021, 19:00:18) [MSC v.1929 64 bit (AMD64)]
+2025-03-24 21:47:46,453 - ImageProcessor - INFO - 收到拖拽数据: [PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211400.jpg'), PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211417.jpg'), PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211317.jpg'), PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211329.jpg'), PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211338.jpg'), PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211349.jpg')]
+2025-03-24 21:47:46,454 - ImageProcessor - DEBUG - 正在解析拖拽数据: [PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211400.jpg'), PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211417.jpg'), PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211317.jpg'), PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211329.jpg'), PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211338.jpg'), PySide6.QtCore.QUrl('file:///C:/Users/Yt/Desktop/img/????????/?????_20250323211349.jpg')]
+2025-03-24 21:47:46,454 - ImageProcessor - DEBUG - 添加有效路径: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211400.jpg
+2025-03-24 21:47:46,454 - ImageProcessor - DEBUG - 添加有效路径: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211417.jpg
+2025-03-24 21:47:46,454 - ImageProcessor - DEBUG - 添加有效路径: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211317.jpg
+2025-03-24 21:47:46,454 - ImageProcessor - DEBUG - 添加有效路径: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211329.jpg
+2025-03-24 21:47:46,455 - ImageProcessor - DEBUG - 添加有效路径: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211338.jpg
+2025-03-24 21:47:46,455 - ImageProcessor - DEBUG - 添加有效路径: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211349.jpg
+2025-03-24 21:47:46,455 - ImageProcessor - INFO - 最终解析结果: ['C:\\Users\\Yt\\Desktop\\img\\新建文件夹\\微信图片_20250323211400.jpg', 'C:\\Users\\Yt\\Desktop\\img\\新建文件夹\\微信图片_20250323211417.jpg', 'C:\\Users\\Yt\\Desktop\\img\\新建文件夹\\微信图片_20250323211317.jpg', 'C:\\Users\\Yt\\Desktop\\img\\新建文件夹\\微信图片_20250323211329.jpg', 'C:\\Users\\Yt\\Desktop\\img\\新建文件夹\\微信图片_20250323211338.jpg', 'C:\\Users\\Yt\\Desktop\\img\\新建文件夹\\微信图片_20250323211349.jpg']
+2025-03-24 21:47:46,456 - ImageProcessor - INFO - 解析后的文件列表: ['C:\\Users\\Yt\\Desktop\\img\\新建文件夹\\微信图片_20250323211400.jpg', 'C:\\Users\\Yt\\Desktop\\img\\新建文件夹\\微信图片_20250323211417.jpg', 'C:\\Users\\Yt\\Desktop\\img\\新建文件夹\\微信图片_20250323211317.jpg', 'C:\\Users\\Yt\\Desktop\\img\\新建文件夹\\微信图片_20250323211329.jpg', 'C:\\Users\\Yt\\Desktop\\img\\新建文件夹\\微信图片_20250323211338.jpg', 'C:\\Users\\Yt\\Desktop\\img\\新建文件夹\\微信图片_20250323211349.jpg']
+2025-03-24 21:47:46,456 - ImageProcessor - DEBUG - 处理文件: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211400.jpg
+2025-03-24 21:47:46,456 - ImageProcessor - DEBUG - 有效图片文件: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211400.jpg
+2025-03-24 21:47:46,456 - ImageProcessor - DEBUG - 处理文件: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211417.jpg
+2025-03-24 21:47:46,456 - ImageProcessor - DEBUG - 有效图片文件: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211417.jpg
+2025-03-24 21:47:46,456 - ImageProcessor - DEBUG - 处理文件: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211317.jpg
+2025-03-24 21:47:46,456 - ImageProcessor - DEBUG - 有效图片文件: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211317.jpg
+2025-03-24 21:47:46,456 - ImageProcessor - DEBUG - 处理文件: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211329.jpg
+2025-03-24 21:47:46,456 - ImageProcessor - DEBUG - 有效图片文件: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211329.jpg
+2025-03-24 21:47:46,456 - ImageProcessor - DEBUG - 处理文件: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211338.jpg
+2025-03-24 21:47:46,458 - ImageProcessor - DEBUG - 有效图片文件: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211338.jpg
+2025-03-24 21:47:46,458 - ImageProcessor - DEBUG - 处理文件: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211349.jpg
+2025-03-24 21:47:46,458 - ImageProcessor - DEBUG - 有效图片文件: C:\Users\Yt\Desktop\img\新建文件夹\微信图片_20250323211349.jpg
+2025-03-24 21:47:46,458 - ImageProcessor - INFO - 添加了 6 个文件，有效添加 6 个（去重后）
+2025-03-24 21:47:47,767 - ImageProcessor - INFO - 初始化OCR引擎，使用语言: ['ch_sim', 'en']
+2025-03-24 21:48:04,661 - ImageProcessor.ProcessThread - DEBUG - 原始方向(0°)识别到34个文本，总置信度: 1.7753170573172607
+2025-03-24 21:48:20,983 - ImageProcessor.ProcessThread - DEBUG - 旋转90°识别到63个文本，总置信度: 12.876717160667978
+2025-03-24 21:48:34,254 - ImageProcessor.ProcessThread - DEBUG - 旋转180°识别到34个文本，总置信度: 1.6072941060463832
+2025-03-24 21:48:48,579 - ImageProcessor.ProcessThread - DEBUG - 旋转270°识别到52个文本，总置信度: 4.4726154870154975
+2025-03-24 21:48:48,586 - ImageProcessor.ProcessThread - DEBUG - 图片 微信图片_20250323211400.jpg 旋转了 90 度
+2025-03-24 21:49:03,387 - ImageProcessor.ProcessThread - DEBUG - 原始方向(0°)识别到41个文本，总置信度: 1.382811818846505
+2025-03-24 21:49:18,136 - ImageProcessor.ProcessThread - DEBUG - 旋转90°识别到67个文本，总置信度: 17.87938539505851
+2025-03-24 21:49:29,788 - ImageProcessor.ProcessThread - DEBUG - 旋转180°识别到31个文本，总置信度: 1.6180435705715333
+2025-03-24 21:49:45,984 - ImageProcessor.ProcessThread - DEBUG - 旋转270°识别到66个文本，总置信度: 5.856810331535537
+2025-03-24 21:49:45,992 - ImageProcessor.ProcessThread - DEBUG - 图片 微信图片_20250323211417.jpg 旋转了 90 度
+2025-03-24 21:49:57,120 - ImageProcessor.ProcessThread - DEBUG - 原始方向(0°)识别到10个文本，总置信度: 0.09249367789931273
+2025-03-24 21:50:09,287 - ImageProcessor.ProcessThread - DEBUG - 旋转90°识别到10个文本，总置信度: 0.49849445924318136
+2025-03-24 21:50:20,245 - ImageProcessor.ProcessThread - DEBUG - 旋转180°识别到7个文本，总置信度: 0.14044194551178085
+2025-03-24 21:50:32,048 - ImageProcessor.ProcessThread - DEBUG - 旋转270°识别到11个文本，总置信度: 6.000047038462516
+2025-03-24 21:50:32,065 - ImageProcessor.ProcessThread - DEBUG - 图片 微信图片_20250323211317.jpg 旋转了 270 度
+2025-03-24 21:50:44,862 - ImageProcessor.ProcessThread - DEBUG - 原始方向(0°)识别到38个文本，总置信度: 2.096619099826804
+2025-03-24 21:50:59,566 - ImageProcessor.ProcessThread - DEBUG - 旋转90°识别到53个文本，总置信度: 2.9052561411350957
+2025-03-24 21:51:11,777 - ImageProcessor.ProcessThread - DEBUG - 旋转180°识别到33个文本，总置信度: 2.337730606601889
+2025-03-24 21:51:25,924 - ImageProcessor.ProcessThread - DEBUG - 旋转270°识别到65个文本，总置信度: 22.18425475601433
+2025-03-24 21:51:25,931 - ImageProcessor.ProcessThread - DEBUG - 图片 微信图片_20250323211329.jpg 旋转了 270 度
+2025-03-24 21:51:38,732 - ImageProcessor.ProcessThread - DEBUG - 原始方向(0°)识别到42个文本，总置信度: 1.2557725372617714
+2025-03-24 21:51:53,062 - ImageProcessor.ProcessThread - DEBUG - 旋转90°识别到70个文本，总置信度: 17.52915514251985
+2025-03-24 21:52:05,920 - ImageProcessor.ProcessThread - DEBUG - 旋转180°识别到36个文本，总置信度: 0.9074857051362454
+2025-03-24 21:52:20,583 - ImageProcessor.ProcessThread - DEBUG - 旋转270°识别到56个文本，总置信度: 1.906615324159011
+2025-03-24 21:52:20,593 - ImageProcessor.ProcessThread - DEBUG - 图片 微信图片_20250323211338.jpg 旋转了 90 度
+2025-03-24 21:52:34,108 - ImageProcessor.ProcessThread - DEBUG - 原始方向(0°)识别到8个文本，总置信度: 1.0321735868758313
+2025-03-24 21:52:46,577 - ImageProcessor.ProcessThread - DEBUG - 旋转90°识别到9个文本，总置信度: 0.8638936865076272
+2025-03-24 21:52:57,088 - ImageProcessor.ProcessThread - DEBUG - 旋转180°识别到9个文本，总置信度: 1.0007923431893122
+2025-03-24 21:53:08,877 - ImageProcessor.ProcessThread - DEBUG - 旋转270°识别到10个文本，总置信度: 7.647683571902046
+2025-03-24 21:53:08,887 - ImageProcessor.ProcessThread - DEBUG - 图片 微信图片_20250323211349.jpg 旋转了 270 度
